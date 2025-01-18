@@ -2,8 +2,12 @@ import os.path
 import time
 import warnings
 from typing import Optional
+
+from dotenv import load_dotenv
 from langchain_community.document_loaders import PyMuPDFLoader
 from spacy.lang.en import English
+from dotenv import load_dotenv
+import os
 from app.models.page_content import PageContentModel
 from app.models.page_metadata import PageMetaData
 from app.models.pdf_document_content import PdfDocumentContentModel
@@ -11,6 +15,8 @@ from app.models.response import ResponseModel
 from app.repositories.document_repository import DocumentRepository
 from app.services.ai_service import AIService
 from app.utils.document_utils import multiple_text_formater, split_text_with_separators, text_formater
+
+load_dotenv()
 
 class DocumentService:
     """
@@ -43,11 +49,10 @@ class DocumentService:
         loader = PyMuPDFLoader(pdf_path) # Load the pdf file
 
         page_number = 1 # Initialize the page number
-        current_loader_page = 1  # Tracks the loader's current page (independent of page_number)
+        current_loader_page = 0  # Tracks the loader's current page (independent of page_number)
         page_content_holder: list[PageContentModel]=[]  # Initialize the page content holder
-        page_metadata_holder: dict = {}
-        skipped_empty_page = [int]
-        skipped_low_token_count_page = []
+        skipped_empty_page: list[int] = []
+        skipped_low_token_count_page: list[str] = []
 
         with warnings.catch_warnings():
             warnings.filterwarnings(
@@ -105,8 +110,6 @@ class DocumentService:
                 print(f"Embedding text of page {page_number} took: {time.time() - embed_sentence_start:.2f} seconds\n")
 
                 page_content_holder.append(page_content)
-                page_metadata_holder = page.metadata
-
                 page_number += 1 # Increment the page number
 
         # End Timer for iterator
@@ -117,14 +120,20 @@ class DocumentService:
         print(f"Skipped low token count {skipped_low_token_count_page}")
 
         pdf_document_content = PdfDocumentContentModel(
-            title=page_metadata_holder["source"].replace("data/","").replace(".pdf",""),
+            title=pdf_path.replace(os.getenv("UPLOAD_FILE_PATH"),"").replace(".pdf",""),
             number_of_pages=len(page_content_holder),
             page_content=page_content_holder,
         )
 
         # Store to vector database and then return a response object
-        return (DocumentRepository(collection_name=collection_name)
-                .store_pdf_document_in_vector_chroma(pdf_document_content=pdf_document_content))
+        response = (DocumentRepository(collection_name=collection_name)
+                    .store_pdf_document_in_vector_chroma(pdf_document_content=pdf_document_content))
+
+        response.data = {
+            "skipped_empty_pages": skipped_empty_page,
+            "skipped_low_token_count": skipped_low_token_count_page
+        }
+        return response
 
     def query_document(self, query: str, collection_name: str) -> Optional[str]:
         embedded_query = self.ai_service.embed_text(query)
