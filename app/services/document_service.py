@@ -77,18 +77,35 @@ class DocumentService:
 
                 cleaned_text = text_formater(page.page_content) # Clean the text for stats
 
-                sentence_item = list(nlp(cleaned_text).sents) # Split the text into sentences
-                sentence_item = [str(sentence) for sentence in sentence_item] # Make sure the sentences are strings
+                try:
+                    sentence_item = list(nlp(cleaned_text).sents)  # Split the text into sentences
+                    sentence_item = [str(sentence) for sentence in sentence_item]  # Make sure the sentences are strings
+                except Exception as e:
+                    print(f"SPACY ERROR: {e}")
+                    return ResponseModel(
+                        status=500,
+                        message=f"An error has occurred while processing(counting sentences) page {page_number}",
+                        data=None
+                    )
+
                 page_text = split_text_with_separators(page.page_content) # Split the text into chunks
                 page_text: list[str] = multiple_text_formater(page_text) # Clean the text for storing
 
                 # Count token for to determine if page is relevant
                 raw_token_count = round(len(cleaned_text.replace(" ", "")) / 4)
-                gemma_token_count = self.ai_service.count_gemma_token(cleaned_text)
+                try:
+                    gemma_token_count = self.ai_service.count_gemma_token(cleaned_text)
+                except Exception as e:
+                    print(f"GEMMA TOKEN COUNTER ERROR: {e}")
+                    return ResponseModel(
+                        status=500,
+                        message=f"An error has occurred while processing(counting tokens using gemma) page {page_number}",
+                        data=None
+                    )
 
                 if raw_token_count < 30 and gemma_token_count < 30 :
-                    skipped_low_token_count_page.append({f"page_number: {page_number}\nraw_token_count: {raw_token_count}\n"
-                                                         f"gemma_token_count: {gemma_token_count}\ncontent: {cleaned_text}"})
+                    skipped_low_token_count_page.append({f"page_number: {page_number} raw_token_count: {raw_token_count} "
+                                                         f"gemma_token_count: {gemma_token_count} content: {cleaned_text}"})
                     page_number+=1
                     continue
 
@@ -104,13 +121,22 @@ class DocumentService:
 
                 # Append the page to the list
                 embed_sentence_start = time.time()
-                page_content = PageContentModel(
-                    id=f"page_{page_number}",
-                    page_metadata=page_metadata,
-                    text=page_text,
-                    embedding= self.ai_service.embed_list_of_text(text_list=page_text) # Embed page text
-                )
-                print(f"Embedding text of page {page_number} took: {time.time() - embed_sentence_start:.2f} seconds\n")
+                try:
+                    page_content = PageContentModel(
+                        id=f"page_{page_number}",
+                        page_metadata=page_metadata,
+                        text=page_text,
+                        embedding=self.ai_service.embed_list_of_text(text_list=page_text)  # Embed page text
+                    )
+                    print(f"Embedding text of page {page_number} took: {time.time() - embed_sentence_start:.2f} seconds\n")
+                except Exception as e:
+                    time.time()
+                    print(f"EMBEDDING ERROR: {e}")
+                    return ResponseModel(
+                        status=500,
+                        message=f"An error has occurred while processing(embedding) page {page_number}",
+                        data=None
+                    )
 
                 page_content_holder.append(page_content)
                 page_number += 1 # Increment the page number
@@ -122,6 +148,16 @@ class DocumentService:
         print(f"Skipped Empty Pages: {skipped_empty_page}")
         print(f"Skipped low token count {skipped_low_token_count_page}")
 
+        if not page_content_holder:
+            return ResponseModel(
+                status=400,
+                message="PDF Content is empty",
+                data={
+                    "skipped_empty_pages": skipped_empty_page,
+                    "skipped_low_token_count": skipped_low_token_count_page
+                }
+            )
+
         pdf_document_content = PdfDocumentContentModel(
             title=pdf_path.replace(os.getenv("UPLOAD_FILE_PATH"),"").replace(".pdf",""),
             number_of_pages=len(page_content_holder),
@@ -129,8 +165,16 @@ class DocumentService:
         )
 
         # Store to vector database and then return a response object
-        response = (DocumentRepository(collection_name=collection_name)
-                    .store_pdf_document_in_vector_chroma(pdf_document_content=pdf_document_content))
+        try:
+            response = (DocumentRepository(collection_name=collection_name)
+                        .store_pdf_document_in_vector_chroma(pdf_document_content=pdf_document_content))
+        except Exception as e:
+            print(f"STORAGE ERROR: {e}")
+            return ResponseModel(
+                status=500,
+                message=f"An error has occurred while storing the contents of page {page_number}",
+                data=None
+            )
 
         response.data = {
             "skipped_empty_pages": skipped_empty_page,
