@@ -1,7 +1,14 @@
 from pydantic import BaseModel, Field
 
-
 class AIResponseModel(BaseModel):
-    question:str = Field(description="The question that i asked")
-    answer:str = Field(description="The answer to the question or your response")
-    references:str = Field(description="The references used, may be links or page number from the context given")
+    """
+        A model representing the AI response.
+
+        Attributes:
+            question (str): The question that was asked.
+            answer (str): The detailed answer to the question.
+            references (str): The references used, such as links or page numbers from the provided context.
+    """
+    question: str = Field(description="The question that was asked.")
+    answer: str = Field(description="The detailed answer to the question.")
+    references: str = Field(description="The references used, such as links or page numbers from the provided context.")
