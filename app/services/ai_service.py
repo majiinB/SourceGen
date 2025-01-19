@@ -13,28 +13,55 @@ from app.models.ai_response import AIResponseModel
 load_dotenv()
 
 class AIService:
+    """
+    A service class for interacting with AI models, including embedding text and generating responses.
+
+    Attributes:
+        tokenizer (AutoTokenizer): The tokenizer for the gemma model.
+        api_key (str): The API key for Google services.
+        model_path (str): The path to the Hugging Face model for gemma.
+        embedding_model (SentenceTransformer): The model used for embedding text.
+    """
 
     def __init__(self, model_name="sentence-transformers/all-mpnet-base-v2"):
-        self.tokenizer=None
-        self.api_key=os.getenv("GOOGLE_API_KEY")
-        self.model_path=os.getenv("HUGGINGFACE_MODEL_GEMMA_PATH")
+        """
+        Initializes the AIService with the specified model.
+
+        Args:
+            model_name (str): The name of the default model to use for embedding text.
+        """
+        self.tokenizer = None
+        self.api_key = os.getenv("GOOGLE_API_KEY")
+        self.model_path = os.getenv("HUGGINGFACE_MODEL_GEMMA_PATH")
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.embedding_model = SentenceTransformer(model_name_or_path=model_name, device=device)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
 
+    def prompt_gemini_flash(self, query: str, context: str) -> Union[AIResponseModel, None]:
+        """
+        Generates a response using the Gemini Flash model based on the provided query and context.
 
-    def prompt_gemini_flash(self, query:str, context:str):
-        llm = ChatGoogleGenerativeAI(
-            model = "gemini-1.5-flash",
-            temperature=0,
-            timeout=None,
-            max_retries=2,
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE
-            }
-        )
+        :param query: The user's query string.
+        :param context: The context string to be used for generating the response.
+        :return: An AIResponseModel containing the structured response or None if an error occurs.
+        """
+        try:
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                temperature=0,
+                timeout=None,
+                max_retries=2,
+                safety_settings={
+                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE
+                }
+            )
 
-        return llm.with_structured_output(AIResponseModel).invoke(self.prompt_template_gen(query=query, context=context))
+            return llm.with_structured_output(AIResponseModel).invoke(self.prompt_template_gen(query=query, context=context))
+
+
+        except Exception as e:
+            print(f"ERROR: An error occurred while generating the response: {e}")
+            return None
 
 
     def embed_list_of_text(self, text_list: list[str]) -> Union[list[list[float]], List[Tensor], ndarray, Tensor]:
@@ -48,8 +75,13 @@ class AIService:
 
         return embeddings
 
-    def embed_text(self, text:str) -> Union[List[Tensor], ndarray, Tensor, None]:
+    def embed_text(self, text: str) -> Union[List[Tensor], ndarray, Tensor, None]:
+        """
+        Embeds a single text string using a pre-trained model.
 
+        :param text: The text to be embedded.
+        :return: The embedding of the text as a list of tensors, ndarray, or tensor, or None if the text is empty.
+        """
         if not text.strip():
             return None
 
@@ -86,6 +118,11 @@ class AIService:
         return context
 
     def count_gemma_token(self, text:str) -> int:
+        """
+            Counts the number of tokens in the given text using the gemma tokenizer.
+            :param text:str The text to be tokenized
+            :return An int which is the number of tokens in the text.
+        """
         input_ids = self.tokenizer(text, return_tensors="pt")
         return len(input_ids["input_ids"][0])
 
