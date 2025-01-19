@@ -23,7 +23,7 @@ class AIService:
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
 
 
-    def prompt_gemini_flash(self, prompt:str, context:str):
+    def prompt_gemini_flash(self, query:str, context:str):
         llm = ChatGoogleGenerativeAI(
             model = "gemini-1.5-flash",
             temperature=0,
@@ -34,16 +34,7 @@ class AIService:
             }
         )
 
-        prompt_template = (f"Based on the following context items, please answer the query.\n"
-                       f"Give yourself room to think by extracting relevant passages from the context before answering the query.\n"
-                       f"Make sure your answers are as explanatory as possible\n"
-                       f"Also, give sources to your answer, you can use the page number given in teh context, as well as any links you may come across the context\n"
-                       f"Now here are the context items you may use to answer the user query:\n"
-                       f"context:\n{context}\n"
-                       f"question: {prompt}\n"
-                       f"In addition, If per chance that the context is not relevant you can remove the sources and just say 'internet' or 'general knowledge'")
-
-        return llm.with_structured_output(AIResponseModel).invoke(prompt_template)
+        return llm.with_structured_output(AIResponseModel).invoke(self.prompt_template_gen(query=query, context=context))
 
 
     def embed_list_of_text(self, text_list: list[str]) -> Union[list[list[float]], List[Tensor], ndarray, Tensor]:
@@ -97,4 +88,37 @@ class AIService:
     def count_gemma_token(self, text:str) -> int:
         input_ids = self.tokenizer(text, return_tensors="pt")
         return len(input_ids["input_ids"][0])
+
+    def prompt_template_gen(self, query:str, context:str) -> str:
+        prompt = (f"Using the provided context, answer the user's query in the structured format described below.\n"
+                  f"Follow these steps to ensure accuracy and clarity:\n"
+                  f"1. Identify and extract the most relevant passages from the context to answer the question.\n"
+                  f"2. Construct a detailed and explanatory answer based on the extracted context.\n"
+                  f"3. Clearly cite the references used in your answer, such as page numbers or links from the context.\n"
+                  f"4. If the provided context is irrelevant to the question, base your answer on general knowledge and indicate the reference as 'general knowledge' or 'internet'.\n\n"
+                  f"Here is the context you may use to answer the query:\n\n"
+                  f"Context:\n{context}\n\n"
+                  f"Question: {query}\n\n"
+                  f"Provide your response strictly in the following structured format:\n\n"
+                  f"### Structured Output Format:\n"
+                  f"{{\n"
+                  f"  \"question\": \"<Insert the question provided>\",\n"
+                  f"  \"answer\": \"<Insert your detailed answer here>\",\n"
+                  f"  \"references\": \"<Insert your references here, such as page numbers, links, or 'general knowledge/internet'>\"\n"
+                  f"}}\n\n"
+                  f"### Example 1 (Using Context):\n"
+                  f"{{\n"
+                  f"  \"question\": \"What are macronutrients?\",\n"
+                  f"  \"answer\": \"Macronutrients are nutrients required in large amounts by the body for energy and growth. They include proteins, fats, and carbohydrates.\",\n"
+                  f"  \"references\": \"page 12\"\n"
+                  f"}}\n\n"
+                  f"### Example 2 (General Knowledge):\n"
+                  f"{{\n"
+                  f"  \"question\": \"What are macronutrients?\",\n"
+                  f"  \"answer\": \"Macronutrients are nutrients required in large amounts by the body for energy and growth. They include proteins, fats, and carbohydrates.\",\n"
+                  f"  \"references\": \"general knowledge/internet\"\n"
+                  f"}}\n\n"
+                  f"Now, based on the provided context and question, provide your response in the structured format:")
+
+        return prompt
 
