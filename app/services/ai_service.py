@@ -2,6 +2,7 @@ from typing import Union, List
 from dotenv import load_dotenv
 import torch.cuda
 from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer
 import os
 from langchain_google_genai import GoogleGenerativeAI as genAi, ChatGoogleGenerativeAI, HarmCategory, HarmBlockThreshold
 from torch import Tensor
@@ -16,9 +17,11 @@ class AIService:
     def __init__(self, model_name="sentence-transformers/all-mpnet-base-v2"):
         self.tokenizer=None
         self.api_key=os.getenv("GOOGLE_API_KEY")
-        self.model_path=os.getenv("HUGGINGFACE_MODEL_PATH")
+        self.model_path=os.getenv("HUGGINGFACE_MODEL_GEMMA_PATH")
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.embedding_model = SentenceTransformer(model_name_or_path=model_name, device=device)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+
 
     def prompt_gemini_flash(self, prompt:str, context:str):
         llm = ChatGoogleGenerativeAI(
@@ -90,4 +93,8 @@ class AIService:
             context += f"Content: {doc}\n\n"
 
         return context
+
+    def count_gemma_token(self, text:str) -> int:
+        input_ids = self.tokenizer(text, return_tensors="pt")
+        return len(input_ids["input_ids"][0])
 

@@ -17,15 +17,17 @@ async def upload_or_load_doc(file: UploadFile = File(...), start_page: int = For
     The processing includes loading the PDF, extracting text, and storing the content in a vector database.
 
     Args:
-        file (UploadFile): The PDF file to be uploaded and processed.
+        :param file: (UploadFile) The PDF file to be uploaded and processed.
+        :param start_page: int The page where the actual content of the pdf start
 
     Returns:
         ResponseModel: A response model containing the status, message, and data of the operation.
-        :param file:
-        :param start_page:
     """
+
+    # Collection name defaults to the name of the pdf file
     collection_name = file.filename.replace(".pdf","")
 
+    # Shield
     if start_page < 1:
         return ResponseModel(
             status=400,
@@ -47,8 +49,11 @@ async def upload_or_load_doc(file: UploadFile = File(...), start_page: int = For
             data=None
         )
 
+    # Initialize the path where the uploaded file will be stored
     file_path = f"{os.getenv("UPLOAD_FILE_PATH")}/{collection_name}.pdf"
 
+    # Check if file already exists, if it exists proceed to processing the contents,
+    # else read the uploaded file and save locally
     if not os.path.exists(file_path):
         with open(file_path, "wb") as f:
             content = await file.read()

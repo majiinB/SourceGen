@@ -17,4 +17,5 @@ class PageMetaData(BaseModel):
     page_char_count: int
     page_word_count: int
     page_sentence_count: int
-    page_token_count: float
+    page_raw_token_count: int
+    page_gemma_token_count: int

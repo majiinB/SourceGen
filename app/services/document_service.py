@@ -2,7 +2,6 @@ import os.path
 import time
 import warnings
 from typing import Optional
-
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyMuPDFLoader
 from spacy.lang.en import English
@@ -84,9 +83,12 @@ class DocumentService:
                 page_text: list[str] = multiple_text_formater(page_text) # Clean the text for storing
 
                 # Count token for to determine if page is relevant
-                token_count = round(len(cleaned_text.replace(" ", "")) / 4)
-                if token_count < 30:
-                    skipped_low_token_count_page.append({f"page number {page_number} token count: {token_count}" : f"content: {cleaned_text}"})
+                raw_token_count = round(len(cleaned_text.replace(" ", "")) / 4)
+                gemma_token_count = self.ai_service.count_gemma_token(cleaned_text)
+
+                if raw_token_count < 30 and gemma_token_count < 30 :
+                    skipped_low_token_count_page.append({f"page_number: {page_number}\nraw_token_count: {raw_token_count}\n"
+                                                         f"gemma_token_count: {gemma_token_count}\ncontent: {cleaned_text}"})
                     page_number+=1
                     continue
 
@@ -96,7 +98,8 @@ class DocumentService:
                     page_char_count=len(cleaned_text),
                     page_word_count=len(cleaned_text.split()),
                     page_sentence_count=len(sentence_item),  # Count the number of sentences using the spacy model
-                    page_token_count=token_count
+                    page_raw_token_count=raw_token_count,
+                    page_gemma_token_count=gemma_token_count
                 )
 
                 # Append the page to the list
