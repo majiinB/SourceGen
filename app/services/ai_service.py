@@ -37,7 +37,7 @@ class AIService:
         self.embedding_model = SentenceTransformer(model_name_or_path=model_name, device=device)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
 
-    def prompt_gemini_flash(self, query: str, context: str) -> Union[AIResponseModel, None]:
+    def prompt_gemini_flash(self, query: str, context: str) -> Union[AIResponseModel, None, dict]:
         """
         Generates a response using the Gemini Flash model based on the provided query and context.
 
@@ -57,7 +57,6 @@ class AIService:
             )
 
             return llm.with_structured_output(AIResponseModel).invoke(self.prompt_template_gen(query=query, context=context))
-
 
         except Exception as e:
             print(f"ERROR: An error occurred while generating the response: {e}")

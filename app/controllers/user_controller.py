@@ -1,5 +1,7 @@
-from fastapi import APIRouter, File, UploadFile, Form
+from fastapi import APIRouter, File, UploadFile, Form, Body
 from dotenv import load_dotenv
+
+from app.models.query_gemini_request import QueryGeminiRequestModel
 from app.models.response import ResponseModel
 from app.services.document_service import DocumentService
 from app.utils.document_utils import is_valid_collection_name
@@ -62,3 +64,23 @@ async def upload_or_load_doc(file: UploadFile = File(...), start_page: int = For
     return await DocumentService().load_and_process_pdf_document(
         pdf_path=file_path,
         collection_name=collection_name, start_page=(start_page-1))
+
+@router.post("/v1/user/query_gemini")
+async def query_gemini(payload: QueryGeminiRequestModel = Body(...)):
+    """
+    Endpoint to query the AI (Gemini), as well as the vector database for context.
+
+    This endpoint allows users to query the vector database for a document using a text query.
+    The query is embedded into a vector and compared against the vectors in the database to find the most similar document.
+    The context of the document is then extracted and used to generate a response using the Gemini AI model.
+
+    Args:
+        :param payload: QueryGeminiRequestModel The payload containing the query and collection name.
+
+    Returns:
+        ResponseModel: A response model containing the status, message, and data of the operation.
+    """
+    query = payload.query
+    collection_name = payload.collection_name
+
+    return DocumentService().query_document(query=query, collection_name=collection_name)

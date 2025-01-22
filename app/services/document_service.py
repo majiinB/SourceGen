@@ -182,14 +182,22 @@ class DocumentService:
         }
         return response
 
-    def query_document(self, query: str, collection_name: str) -> Optional[str]:
+    def query_document(self, query: str, collection_name: str) -> ResponseModel:
         embedded_query = self.ai_service.embed_text(query)
 
         if not embedded_query is None:
             data = DocumentRepository(collection_name=collection_name).query_vector_chroma_db(embedded_query=embedded_query)
             context = self.ai_service.extract_context(data)
-            return self.ai_service.prompt_gemini_flash(prompt=query, context=context)
-
+            data = self.ai_service.prompt_gemini_flash(query=query, context=context)
+            return ResponseModel(
+                status=200,
+                message="Query successful",
+                data=data
+            )
         else:
-            return None
+            return ResponseModel(
+                status=400,
+                message="Empty query",
+                data=None
+            )
 
