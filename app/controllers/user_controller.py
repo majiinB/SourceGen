@@ -9,6 +9,7 @@ import os
 
 router = APIRouter()
 load_dotenv()
+document_service = DocumentService()
 
 @router.post("/v1/user/upload_pdf")
 async def upload_or_load_doc(file: UploadFile = File(...), start_page: int = Form(...)):
@@ -61,7 +62,7 @@ async def upload_or_load_doc(file: UploadFile = File(...), start_page: int = For
             content = await file.read()
             f.write(content)
 
-    return await DocumentService().load_and_process_pdf_document(
+    return await document_service.load_and_process_pdf_document(
         pdf_path=file_path,
         collection_name=collection_name, start_page=(start_page-1))
 
@@ -83,4 +84,4 @@ async def query_gemini(payload: QueryGeminiRequestModel = Body(...)):
     query = payload.query
     collection_name = payload.collection_name
 
-    return DocumentService().query_document(query=query, collection_name=collection_name)
+    return document_service.query_document(query=query, collection_name=collection_name)
