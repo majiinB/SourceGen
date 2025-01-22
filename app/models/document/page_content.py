@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from app.models.page_metadata import PageMetaData
+from app.models.document.page_metadata import PageMetaData
 
 class PageContentModel(BaseModel):
     """

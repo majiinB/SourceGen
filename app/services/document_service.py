@@ -1,16 +1,14 @@
 import os.path
 import time
 import warnings
-from typing import Optional
-from dotenv import load_dotenv
 from langchain_community.document_loaders import PyMuPDFLoader
 from spacy.lang.en import English
 from dotenv import load_dotenv
 import os
-from app.models.page_content import PageContentModel
-from app.models.page_metadata import PageMetaData
-from app.models.pdf_document_content import PdfDocumentContentModel
-from app.models.response import ResponseModel
+from app.models.document.page_content import PageContentModel
+from app.models.document.page_metadata import PageMetaData
+from app.models.document.pdf_document_content import PdfDocumentContentModel
+from app.models.response.response import ResponseModel
 from app.repositories.document_repository import DocumentRepository
 from app.services.ai_service import AIService
 from app.utils.document_utils import multiple_text_formater, split_text_with_separators, text_formater

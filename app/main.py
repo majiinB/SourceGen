@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from .controllers import user_controller
-from .models.response import ResponseModel
+from .models.response.response import ResponseModel
 
 app = FastAPI()
 

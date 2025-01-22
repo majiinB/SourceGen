@@ -1,8 +1,7 @@
 import chromadb
-from torch.nn.functional import embedding
 
-from app.models.pdf_document_content import PdfDocumentContentModel
-from app.models.response import ResponseModel
+from app.models.document.pdf_document_content import PdfDocumentContentModel
+from app.models.response.response import ResponseModel
 from dotenv import load_dotenv
 import os
 

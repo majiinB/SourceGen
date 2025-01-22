@@ -6,12 +6,12 @@ from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 import os
-from langchain_google_genai import GoogleGenerativeAI as genAi, ChatGoogleGenerativeAI, HarmCategory, HarmBlockThreshold
+from langchain_google_genai import ChatGoogleGenerativeAI, HarmCategory, HarmBlockThreshold
 from torch import Tensor
 from torch._numpy import ndarray
 from transformers.utils import is_flash_attn_2_available
 
-from app.models.ai_response import AIResponseModel
+from app.models.response.ai_response import AIResponseModel
 
 load_dotenv()
 
@@ -32,19 +32,25 @@ class AIService:
         Args:
             model_name (str): The name of the default model to use for embedding text.
         """
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = None
         self.model_path = os.getenv("HUGGINGFACE_MODEL_GEMMA_PATH")
-        device = "cuda" if torch.cuda.is_available() else "cpu"
         self.embedding_model = SentenceTransformer(model_name_or_path=model_name, device=device)
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self.local_gemma_model = self.__load_local_gemma_model()
         self.gemini_model = self.__load_gemini_flash_model()
 
+    """   LOADING MODELS   """
     def __load_gemini_flash_model(self):
+        """
+            Loads the Gemini Flash model.
+
+            :return: An instance of ChatGoogleGenerativeAI if successful, otherwise None.
+        """
         try:
             llm = ChatGoogleGenerativeAI(
                 model="gemini-1.5-flash",
-                temperature=0,
+                temperature=0.8,
                 timeout=None,
                 max_retries=2,
                 safety_settings={
@@ -58,8 +64,11 @@ class AIService:
 
     def __load_local_gemma_model(self):
         """
-        Load the local gemma model
+            Loads the local Gemma model with appropriate attention implementation based on hardware capabilities.
+
+            :return: An instance of HuggingFacePipeline if successful, otherwise None.
         """
+
         if (is_flash_attn_2_available()) and (torch.cuda.get_device_capability(0)[0] >= 8):
             attn_implementation = "flash_attention_2"
         else:
@@ -76,12 +85,16 @@ class AIService:
                 model=llm_model,
                 device=0,
                 tokenizer=self.tokenizer,
-                max_new_tokens=500)
+                max_new_tokens=500,
+                framework="pt",
+                model_kwargs={"temperature": 0.8, "do_sample": True}
+            )
             return HuggingFacePipeline(pipeline=pipe)
         except Exception as e:
             print(f"ERROR: An error occurred while loading the model(local-gemma): {e}")
             return None
 
+    """   PROMPT/QUERYING MODELS   """
     def prompt_gemini_flash(self, query: str, context: str) -> Union[AIResponseModel, None, dict]:
         """
         Generates a response using the Gemini Flash model based on the provided query and context.
@@ -127,6 +140,7 @@ class AIService:
             print(f"ERROR: An error occurred while generating the response: {e}")
             return None
 
+    """   EMBEDDING TEXT   """
     def embed_list_of_text(self, text_list: list[str]) -> Union[list[list[float]], List[Tensor], ndarray, Tensor]:
         """Union[List[Tensor], ndarray, Tensor]
         This function embeds a list of text using a pre-trained model.
@@ -147,6 +161,17 @@ class AIService:
             return None
         return self.embedding_model.encode(text, batch_size=16, convert_to_tensor=False)
 
+    """ UTIL """
+    def count_gemma_token(self, text:str) -> int:
+        """
+            Counts the number of tokens in the given text using the gemma tokenizer.
+            :param text:str The text to be tokenized
+            :return An int which is the number of tokens in the text.
+        """
+        input_ids = self.tokenizer(text, return_tensors="pt")
+        return len(input_ids["input_ids"][0])
+
+    """   EXTRACTING CONTEXT   """
     def extract_context(self, data:dict):
         """
         Extracts and formats context from the given query response.
@@ -177,15 +202,7 @@ class AIService:
 
         return context
 
-    def count_gemma_token(self, text:str) -> int:
-        """
-            Counts the number of tokens in the given text using the gemma tokenizer.
-            :param text:str The text to be tokenized
-            :return An int which is the number of tokens in the text.
-        """
-        input_ids = self.tokenizer(text, return_tensors="pt")
-        return len(input_ids["input_ids"][0])
-
+    """   PROMPT TEMPLATES  """
     def prompt_template_gen(self, query:str, context:str) -> str:
         prompt = (f"Using the provided context, answer the user's query in the structured format described below.\n"
                   f"Follow these steps to ensure accuracy and clarity:\n"

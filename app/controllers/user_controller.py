@@ -1,8 +1,8 @@
 from fastapi import APIRouter, File, UploadFile, Form, Body
 from dotenv import load_dotenv
 
-from app.models.query_gemini_request import QueryGeminiRequestModel
-from app.models.response import ResponseModel
+from app.models.request.query_gemini_request import QueryGeminiRequestModel
+from app.models.response.response import ResponseModel
 from app.services.document_service import DocumentService
 from app.utils.document_utils import is_valid_collection_name
 import os

@@ -1,9 +1,6 @@
-from datetime import datetime
-
-from pandas.core.interchange.dataframe_protocol import DataFrame
 from pydantic import BaseModel
 
-from app.models.page_content import PageContentModel
+from app.models.document.page_content import PageContentModel
 
 class PdfDocumentContentModel(BaseModel):
     """
